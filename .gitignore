@@ -1,0 +1,40 @@
+# Generated files
+target/
+**/target/
+
+# Dependencies
+Cargo.lock  # Keep this if you want to lock dependencies, remove if only libraries
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Log files
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+.directory
+*.nfs
+.DS_Store?
+
+# Rust-specific
+**/*.rs.bk
+**/*.tmp
+
+# Test and coverage
+coverage/
+.cargo/
