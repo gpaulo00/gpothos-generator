@@ -20,7 +20,7 @@ builder.mutationField("createOne{model}", (t) =>
     resolve: async (query, _root, args, ctx) => {{
       return ctx.prisma.{model_lower}.create({{
         ...query,
-        data: args.data,
+        data: args.data as any,
       }});
     }},
   }})

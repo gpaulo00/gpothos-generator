@@ -7,6 +7,7 @@ pub fn generate_helpers(output_dir: &Path) -> Result<()> {
     let content = r#"import SchemaBuilder from "@pothos/core";
 import PrismaPlugin from "@pothos/plugin-prisma";
 import { PrismaClient } from "@prisma/client";
+import SimpleObjectsPlugin from '@pothos/plugin-simple-objects';
 import type PrismaTypes from "@pothos/plugin-prisma/generated";
 
 // Initialize Prisma Client
@@ -32,7 +33,7 @@ export const builder = new SchemaBuilder<{
     };
   };
 }>({
-  plugins: [PrismaPlugin],
+  plugins: [PrismaPlugin, SimpleObjectsPlugin],
   prisma: {
     client: prisma,
     exposeDescriptions: true,

@@ -11,15 +11,16 @@ pub fn generate(model: &Model, resolver_dir: &Path, _args_dir: &Path) -> Result<
 import {{ {model}WhereInput }} from "../inputs/{model}WhereInput";
 
 // Define aggregate result type
-const {model}AggregateResult = builder.objectType("{model}AggregateResult", {{
+const {model}AggregateResult = builder.simpleObject("{model}AggregateResult", {{
   fields: (t) => ({{
-    _count: t.int({{ nullable: true }}),
+    _count: t.int({{}}),
   }}),
 }});
 
 builder.queryField("aggregate{model}", (t) =>
   t.field({{
     type: {model}AggregateResult,
+    nullable: false,
     args: {{
       where: t.arg({{ type: {model}WhereInput }}),
     }},

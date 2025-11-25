@@ -24,7 +24,7 @@ builder.mutationField("updateOne{model}", (t) =>
       return ctx.prisma.{model_lower}.update({{
         ...query,
         where: args.where,
-        data: args.data,
+        data: args.data as any,
       }});
     }},
   }})

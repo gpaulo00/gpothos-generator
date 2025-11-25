@@ -26,7 +26,7 @@ builder.queryField("{plural}", (t) =>
       return ctx.prisma.{model_lower}.findMany({{
         ...query,
         where: args.where ?? undefined,
-        orderBy: args.orderBy ?? undefined,
+        orderBy: (args.orderBy ?? undefined) as any,
         take: args.first ?? undefined,
         skip: args.last ?? undefined,
       }});

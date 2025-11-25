@@ -180,7 +180,7 @@ fn generate_where_unique_input(model: &Model, dir: &Path) -> Result<()> {
     // ID and unique fields
     for field in &model.fields {
         if field.is_id || field.is_unique {
-            let field_code = generate_input_field(&field.field_type, &field.name, false, "");
+            let field_code = generate_input_field(&field.field_type, &field.name, false, "required: true");
             content.push_str(&format!("    {},\n", field_code));
         }
     }
