@@ -5,6 +5,8 @@ pub mod inputs;
 pub mod models;
 pub mod resolvers;
 
+pub use helpers::get_prisma_name;
+
 use crate::parser::ParsedSchema;
 use anyhow::Result;
 use std::fs;
@@ -297,11 +299,12 @@ fn generate_index(schema: &ParsedSchema, output_dir: &Path) -> Result<()> {
 
     content.push_str("\n// Inputs\n");
     for model in &schema.models {
-        content.push_str(&format!("import './inputs/{}CreateInput';\n", model.name));
-        content.push_str(&format!("import './inputs/{}UpdateInput';\n", model.name));
-        content.push_str(&format!("import './inputs/{}WhereInput';\n", model.name));
-        content.push_str(&format!("import './inputs/{}WhereUniqueInput';\n", model.name));
-        content.push_str(&format!("import './inputs/{}OrderByInput';\n", model.name));
+        let names = get_prisma_name(&model.name);
+        content.push_str(&format!("import './inputs/{}';\n", names.create_input));
+        content.push_str(&format!("import './inputs/{}';\n", names.update_input));
+        content.push_str(&format!("import './inputs/{}';\n", names.where_input));
+        content.push_str(&format!("import './inputs/{}';\n", names.where_unique_input));
+        content.push_str(&format!("import './inputs/{}';\n", names.order_by_input));
     }
 
     content.push_str("\n// Resolvers\n");

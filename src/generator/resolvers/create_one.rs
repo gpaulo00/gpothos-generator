@@ -1,24 +1,25 @@
 use crate::parser::Model;
+use crate::generator::get_prisma_name;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
 pub fn generate(model: &Model, resolver_dir: &Path, _args_dir: &Path) -> Result<()> {
-    let model_lower = to_lowercase_first(&model.name);
+    let names = get_prisma_name(&model.name);
 
     let content = format!(
         r#"import {{ builder }} from "../builder";
 import {{ {model} }} from "../models/{model}";
 import {{ {model}CreateInput }} from "../inputs/{model}CreateInput";
 
-builder.mutationField("createOne{model}", (t) =>
+builder.mutationField("{mutation_name}", (t) =>
   t.prismaField({{
     type: "{model}",
     args: {{
       data: t.arg({{ type: {model}CreateInput, required: true }}),
     }},
     resolve: async (query, _root, args, ctx) => {{
-      return ctx.prisma.{model_lower}.create({{
+      return ctx.prisma.{prisma_model}.create({{
         ...query,
         data: args.data as any,
       }});
@@ -27,7 +28,8 @@ builder.mutationField("createOne{model}", (t) =>
 );
 "#,
         model = model.name,
-        model_lower = model_lower
+        prisma_model = names.query_new2,  // Use query_new2 for Prisma client calls
+        mutation_name = names.create
     );
 
     fs::write(
@@ -36,12 +38,4 @@ builder.mutationField("createOne{model}", (t) =>
     )?;
 
     Ok(())
-}
-
-fn to_lowercase_first(s: &str) -> String {
-    let mut chars = s.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(c) => c.to_lowercase().collect::<String>() + chars.as_str(),
-    }
 }

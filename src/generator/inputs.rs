@@ -1,4 +1,5 @@
 use crate::parser::{FieldType, Model};
+use crate::generator::get_prisma_name;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::fs;
@@ -33,6 +34,7 @@ pub fn generate_inputs(model: &Model, output_dir: &Path) -> Result<()> {
 }
 
 fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
     let mut content = String::new();
     let used_enums = collect_enum_types(model);
 
@@ -43,7 +45,7 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
     }
     content.push('\n');
 
-    let input_name = format!("{}CreateInput", model.name);
+    let input_name = names.create_input;
 
     content.push_str(&format!(
         "export const {} = builder.inputType(\"{}\", {{\n",
@@ -80,6 +82,7 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
 }
 
 fn generate_update_input(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
     let mut content = String::new();
     let used_enums = collect_enum_types(model);
 
@@ -90,7 +93,7 @@ fn generate_update_input(model: &Model, dir: &Path) -> Result<()> {
     }
     content.push('\n');
 
-    let input_name = format!("{}UpdateInput", model.name);
+    let input_name = names.update_input;
 
     content.push_str(&format!(
         "export const {} = builder.inputType(\"{}\", {{\n",
@@ -116,12 +119,13 @@ fn generate_update_input(model: &Model, dir: &Path) -> Result<()> {
 }
 
 fn generate_where_input(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
     let mut content = String::new();
 
     content.push_str("import { builder } from \"../builder\";\n");
     content.push_str("import { StringFilter, IntFilter, FloatFilter, BoolFilter, DateTimeFilter } from \"./filters\";\n\n");
 
-    let input_name = format!("{}WhereInput", model.name);
+    let input_name = names.where_input;
 
     content.push_str(&format!(
         "export const {} = builder.inputType(\"{}\", {{\n",
@@ -165,11 +169,12 @@ fn generate_where_input(model: &Model, dir: &Path) -> Result<()> {
 }
 
 fn generate_where_unique_input(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
     let mut content = String::new();
 
     content.push_str("import { builder } from \"../builder\";\n\n");
 
-    let input_name = format!("{}WhereUniqueInput", model.name);
+    let input_name = names.where_unique_input;
 
     content.push_str(&format!(
         "export const {} = builder.inputType(\"{}\", {{\n",
@@ -194,12 +199,13 @@ fn generate_where_unique_input(model: &Model, dir: &Path) -> Result<()> {
 }
 
 fn generate_order_by_input(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
     let mut content = String::new();
 
     content.push_str("import { builder } from \"../builder\";\n");
     content.push_str("import { SortOrder } from \"../enums\";\n\n");
 
-    let input_name = format!("{}OrderByInput", model.name);
+    let input_name = names.order_by_input;
 
     content.push_str(&format!(
         "export const {} = builder.inputType(\"{}\", {{\n",

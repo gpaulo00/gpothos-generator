@@ -1,11 +1,11 @@
 use crate::parser::Model;
+use crate::generator::get_prisma_name;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
 pub fn generate(model: &Model, resolver_dir: &Path, _args_dir: &Path) -> Result<()> {
-    let model_lower = to_lowercase_first(&model.name);
-    let plural = pluralize(&model_lower);
+    let names = get_prisma_name(&model.name);
 
     let content = format!(
         r#"import {{ builder }} from "../builder";
@@ -13,7 +13,7 @@ import {{ {model} }} from "../models/{model}";
 import {{ {model}WhereInput }} from "../inputs/{model}WhereInput";
 import {{ {model}OrderByInput }} from "../inputs/{model}OrderByInput";
 
-builder.queryField("{plural}", (t) =>
+builder.queryField("{query_name}", (t) =>
   t.prismaField({{
     type: ["{model}"],
     args: {{
@@ -23,7 +23,7 @@ builder.queryField("{plural}", (t) =>
       last: t.arg.int(),
     }},
     resolve: async (query, _root, args, ctx) => {{
-      return ctx.prisma.{model_lower}.findMany({{
+      return ctx.prisma.{prisma_model}.findMany({{
         ...query,
         where: args.where ?? undefined,
         orderBy: (args.orderBy ?? undefined) as any,
@@ -35,8 +35,8 @@ builder.queryField("{plural}", (t) =>
 );
 "#,
         model = model.name,
-        model_lower = model_lower,
-        plural = plural
+        prisma_model = names.query_new2,  // Use query_new2 for Prisma client calls
+        query_name = names.find_many     // Use find_many for GraphQL field name (camelCase + plural)
     );
 
     fs::write(
@@ -45,22 +45,4 @@ builder.queryField("{plural}", (t) =>
     )?;
 
     Ok(())
-}
-
-fn to_lowercase_first(s: &str) -> String {
-    let mut chars = s.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(c) => c.to_lowercase().collect::<String>() + chars.as_str(),
-    }
-}
-
-fn pluralize(s: &str) -> String {
-    if s.ends_with('s') || s.ends_with('x') || s.ends_with("ch") || s.ends_with("sh") {
-        format!("{}es", s)
-    } else if s.ends_with('y') && !s.ends_with("ay") && !s.ends_with("ey") && !s.ends_with("oy") && !s.ends_with("uy") {
-        format!("{}ies", &s[..s.len() - 1])
-    } else {
-        format!("{}s", s)
-    }
 }

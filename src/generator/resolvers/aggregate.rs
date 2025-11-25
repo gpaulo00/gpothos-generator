@@ -1,10 +1,11 @@
 use crate::parser::Model;
+use crate::generator::get_prisma_name;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
 pub fn generate(model: &Model, resolver_dir: &Path, _args_dir: &Path) -> Result<()> {
-    let model_lower = to_lowercase_first(&model.name);
+    let names = get_prisma_name(&model.name);
 
     let content = format!(
         r#"import {{ builder }} from "../builder";
@@ -25,7 +26,7 @@ builder.queryField("aggregate{model}", (t) =>
       where: t.arg({{ type: {model}WhereInput }}),
     }},
     resolve: async (_root, args, ctx) => {{
-      const result = await ctx.prisma.{model_lower}.aggregate({{
+      const result = await ctx.prisma.{prisma_model}.aggregate({{
         where: args.where ?? undefined,
         _count: true,
       }});
@@ -37,7 +38,7 @@ builder.queryField("aggregate{model}", (t) =>
 );
 "#,
         model = model.name,
-        model_lower = model_lower
+        prisma_model = names.query_new2  // Use query_new2 for Prisma client calls
     );
 
     fs::write(
@@ -46,12 +47,4 @@ builder.queryField("aggregate{model}", (t) =>
     )?;
 
     Ok(())
-}
-
-fn to_lowercase_first(s: &str) -> String {
-    let mut chars = s.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(c) => c.to_lowercase().collect::<String>() + chars.as_str(),
-    }
 }
