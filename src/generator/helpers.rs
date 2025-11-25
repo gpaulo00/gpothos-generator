@@ -126,7 +126,7 @@ export interface Context {
 // Initialize Pothos Builder with Prisma Plugin
 export const builder = new SchemaBuilder<{
   PrismaTypes: PrismaTypes;
-  Context: Context;
+  Context: any; // TODO: put Context interface here (breaks)
   Scalars: {
     DateTime: {
       Input: Date;

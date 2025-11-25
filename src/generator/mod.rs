@@ -294,26 +294,26 @@ fn generate_index(schema: &ParsedSchema, output_dir: &Path) -> Result<()> {
 
     content.push_str("// Models\n");
     for model in &schema.models {
-        content.push_str(&format!("import './models/{}';\n", model.name));
+        content.push_str(&format!("export * from './models/{}';\n", model.name));
     }
 
     content.push_str("\n// Inputs\n");
     for model in &schema.models {
         let names = get_prisma_name(&model.name);
-        content.push_str(&format!("import './inputs/{}';\n", names.create_input));
-        content.push_str(&format!("import './inputs/{}';\n", names.update_input));
-        content.push_str(&format!("import './inputs/{}';\n", names.where_input));
-        content.push_str(&format!("import './inputs/{}';\n", names.where_unique_input));
-        content.push_str(&format!("import './inputs/{}';\n", names.order_by_input));
+        content.push_str(&format!("export * from './inputs/{}';\n", names.create_input));
+        content.push_str(&format!("export * from './inputs/{}';\n", names.update_input));
+        content.push_str(&format!("export * from './inputs/{}';\n", names.where_input));
+        content.push_str(&format!("export * from './inputs/{}';\n", names.where_unique_input));
+        content.push_str(&format!("export * from './inputs/{}';\n", names.order_by_input));
     }
 
     content.push_str("\n// Resolvers\n");
     for model in &schema.models {
-        content.push_str(&format!("import './resolvers/createOne{}';\n", model.name));
-        content.push_str(&format!("import './resolvers/findMany{}';\n", model.name));
-        content.push_str(&format!("import './resolvers/findUnique{}';\n", model.name));
-        content.push_str(&format!("import './resolvers/aggregate{}';\n", model.name));
-        content.push_str(&format!("import './resolvers/updateOne{}';\n", model.name));
+        content.push_str(&format!("export * from './resolvers/createOne{}';\n", model.name));
+        content.push_str(&format!("export * from './resolvers/findMany{}';\n", model.name));
+        content.push_str(&format!("export * from './resolvers/findUnique{}';\n", model.name));
+        content.push_str(&format!("export * from './resolvers/aggregate{}';\n", model.name));
+        content.push_str(&format!("export * from './resolvers/updateOne{}';\n", model.name));
     }
 
     content.push_str("\n// Build schema\n");
