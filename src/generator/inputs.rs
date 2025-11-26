@@ -29,6 +29,10 @@ pub fn generate_inputs(model: &Model, output_dir: &Path) -> Result<()> {
     generate_where_input(model, &inputs_dir)?;
     generate_where_unique_input(model, &inputs_dir)?;
     generate_order_by_input(model, &inputs_dir)?;
+    
+    // Generate relation-specific input types
+    generate_where_unique_input_for_relations(model, &inputs_dir)?;
+    generate_relation_create_input(model, &inputs_dir)?;
 
     Ok(())
 }
@@ -43,6 +47,28 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
         let enum_imports: Vec<String> = used_enums.into_iter().collect();
         content.push_str(&format!("import {{ {} }} from \"../enums\";\n", enum_imports.join(", ")));
     }
+    
+    // Import relation input types for nested relations
+    let mut relation_imports: Vec<String> = Vec::new();
+    for field in &model.fields {
+        if let Some(_relation) = &field.relation {
+            if let FieldType::Model(related_model) = &field.field_type {
+                let relation_input_name = if field.is_list {
+                    format!("{}{}ListRelationInput", model.name, related_model)
+                } else {
+                    format!("{}{}RelationInput", model.name, related_model)
+                };
+                if !relation_imports.contains(&relation_input_name) {
+                    relation_imports.push(relation_input_name);
+                }
+            }
+        }
+    }
+    
+    if !relation_imports.is_empty() {
+        content.push_str(&format!("import {{ {} }} from \"./relations\";\n", relation_imports.join(", ")));
+    }
+    
     content.push('\n');
 
     let input_name = names.create_input;
@@ -54,12 +80,31 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
     content.push_str("  fields: (t) => ({\n");
 
     for field in &model.fields {
-        if field.relation.is_some() {
+        // Skip auto-generated fields
+        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" {
             continue;
         }
 
-        // Skip auto-generated fields
-        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" {
+        // Handle relation fields
+        if let Some(relation) = &field.relation {
+            // Include only relations WITH fields (the "owning" side with foreign key)
+            // These are the ones where we can connect/create related records
+            // Skip reverse relations (without fields) to avoid duplication
+            if relation.fields.is_empty() {
+                continue;
+            }
+            
+            if let FieldType::Model(related_model) = &field.field_type {
+                let relation_input_type = if field.is_list {
+                    format!("{}{}ListRelationInput", model.name, related_model)
+                } else {
+                    format!("{}{}RelationInput", model.name, related_model)
+                };
+                content.push_str(&format!(
+                    "    {}: t.field({{ type: {} }}),\n",
+                    field.name, relation_input_type
+                ));
+            }
             continue;
         }
 
@@ -91,6 +136,28 @@ fn generate_update_input(model: &Model, dir: &Path) -> Result<()> {
         let enum_imports: Vec<String> = used_enums.into_iter().collect();
         content.push_str(&format!("import {{ {} }} from \"../enums\";\n", enum_imports.join(", ")));
     }
+    
+    // Import relation input types for nested relations
+    let mut relation_imports: Vec<String> = Vec::new();
+    for field in &model.fields {
+        if let Some(_relation) = &field.relation {
+            if let FieldType::Model(related_model) = &field.field_type {
+                let relation_input_name = if field.is_list {
+                    format!("{}{}ListRelationInput", model.name, related_model)
+                } else {
+                    format!("{}{}RelationInput", model.name, related_model)
+                };
+                if !relation_imports.contains(&relation_input_name) {
+                    relation_imports.push(relation_input_name);
+                }
+            }
+        }
+    }
+    
+    if !relation_imports.is_empty() {
+        content.push_str(&format!("import {{ {} }} from \"./relations\";\n", relation_imports.join(", ")));
+    }
+    
     content.push('\n');
 
     let input_name = names.update_input;
@@ -102,7 +169,30 @@ fn generate_update_input(model: &Model, dir: &Path) -> Result<()> {
     content.push_str("  fields: (t) => ({\n");
 
     for field in &model.fields {
-        if field.relation.is_some() || field.is_id {
+        if field.is_id {
+            continue;
+        }
+
+        // Handle relation fields
+        if let Some(relation) = &field.relation {
+            // Include only relations WITH fields (the "owning" side with foreign key)
+            // These are the ones where we can connect/create related records
+            // Skip reverse relations (without fields) to avoid duplication
+            if relation.fields.is_empty() {
+                continue;
+            }
+            
+            if let FieldType::Model(related_model) = &field.field_type {
+                let relation_input_type = if field.is_list {
+                    format!("{}{}ListRelationInput", model.name, related_model)
+                } else {
+                    format!("{}{}RelationInput", model.name, related_model)
+                };
+                content.push_str(&format!(
+                    "    {}: t.field({{ type: {} }}),\n",
+                    field.name, relation_input_type
+                ));
+            }
             continue;
         }
 
@@ -331,4 +421,129 @@ fn get_filter_type(field_type: &FieldType) -> String {
         FieldType::Enum(_) => "StringFilter".to_string(),
         FieldType::Model(_) => "StringFilter".to_string(),
     }
+}
+
+/// Generate WhereUnique input for relations (used in connect operations)
+/// This is similar to the regular WhereUniqueInput but specifically for relation operations
+fn generate_where_unique_input_for_relations(model: &Model, dir: &Path) -> Result<()> {
+    let _names = get_prisma_name(&model.name);
+    let mut content = String::new();
+
+    content.push_str("import { builder } from \"../builder\";\n\n");
+
+    let input_name = format!("{}WhereUniqueRelationInput", model.name);
+
+    content.push_str(&format!(
+        "export const {} = builder.inputType(\"{}\", {{\n",
+        input_name, input_name
+    ));
+    content.push_str("  fields: (t) => ({\n");
+
+    // ID and unique fields only
+    for field in &model.fields {
+        if field.is_id || field.is_unique {
+            if field.relation.is_some() {
+                continue; // Skip relation fields in WhereUnique
+            }
+            let field_code = generate_input_field(&field.field_type, &field.name, false, "");
+            content.push_str(&format!("    {},\n", field_code));
+        }
+    }
+
+    content.push_str("  }),\n");
+    content.push_str("});\n");
+
+    fs::write(dir.join(format!("{}.ts", input_name)), content)?;
+
+    Ok(())
+}
+
+/// Generate RelationCreate input (like CreateInput but without reverse relations to avoid circular deps)
+fn generate_relation_create_input(model: &Model, dir: &Path) -> Result<()> {
+    let _names = get_prisma_name(&model.name);
+    let mut content = String::new();
+    let used_enums = collect_enum_types(model);
+
+    content.push_str("import { builder } from \"../builder\";\n");
+    if !used_enums.is_empty() {
+        let enum_imports: Vec<String> = used_enums.into_iter().collect();
+        content.push_str(&format!("import {{ {} }} from \"../enums\";\n", enum_imports.join(", ")));
+    }
+    
+    // Import relation input types for nested relations
+    let mut relation_imports: Vec<String> = Vec::new();
+    for field in &model.fields {
+        if let Some(_relation) = &field.relation {
+            if let FieldType::Model(related_model) = &field.field_type {
+                let relation_input_name = if field.is_list {
+                    format!("{}{}ListRelationInput", model.name, related_model)
+                } else {
+                    format!("{}{}RelationInput", model.name, related_model)
+                };
+                if !relation_imports.contains(&relation_input_name) {
+                    relation_imports.push(relation_input_name);
+                }
+            }
+        }
+    }
+    
+    if !relation_imports.is_empty() {
+        content.push_str(&format!("import {{ {} }} from \"./relations\";\n", relation_imports.join(", ")));
+    }
+    
+    content.push('\n');
+
+    let input_name = format!("{}RelationCreateInput", model.name);
+
+    content.push_str(&format!(
+        "export const {} = builder.inputType(\"{}\", {{\n",
+        input_name, input_name
+    ));
+    content.push_str("  fields: (t) => ({\n");
+
+    for field in &model.fields {
+        // Skip auto-generated fields
+        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" {
+            continue;
+        }
+
+        // For relation fields, add the nested relation input
+        if let Some(relation) = &field.relation {
+            // Include only relations WITH fields (the "owning" side with foreign key)
+            // These are the ones where we can connect/create related records
+            // Skip reverse relations (without fields) to avoid duplication
+            if relation.fields.is_empty() {
+                continue;
+            }
+            
+            if let FieldType::Model(related_model) = &field.field_type {
+                let relation_input_type = if field.is_list {
+                    format!("{}{}ListRelationInput", model.name, related_model)
+                } else {
+                    format!("{}{}RelationInput", model.name, related_model)
+                };
+                content.push_str(&format!(
+                    "    {}: t.field({{ type: {} }}),\n",
+                    field.name, relation_input_type
+                ));
+            }
+            continue;
+        }
+
+        let required = if field.is_id || !field.is_required || field.default_value.is_some() {
+            ""
+        } else {
+            "required: true"
+        };
+
+        let field_code = generate_input_field(&field.field_type, &field.name, field.is_list, required);
+        content.push_str(&format!("    {},\n", field_code));
+    }
+
+    content.push_str("  }),\n");
+    content.push_str("});\n");
+
+    fs::write(dir.join(format!("{}.ts", input_name)), content)?;
+
+    Ok(())
 }

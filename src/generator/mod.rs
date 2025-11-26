@@ -3,6 +3,7 @@ pub mod filters;
 pub mod helpers;
 pub mod inputs;
 pub mod models;
+pub mod relations;
 pub mod resolvers;
 
 pub use helpers::get_prisma_name;
@@ -38,6 +39,10 @@ pub fn generate(schema: &ParsedSchema, output_dir: &Path) -> Result<()> {
         inputs::generate_inputs(model, output_dir)?;
         resolvers::generate_resolvers(model, schema, output_dir)?;
     }
+
+    // Generate relation inputs (must be after all models are processed)
+    println!("Generating relation inputs...");
+    relations::generate_all_relation_inputs(schema, output_dir)?;
 
     // Generate index file
     generate_index(schema, output_dir)?;
