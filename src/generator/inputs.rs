@@ -79,9 +79,19 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
     ));
     content.push_str("  fields: (t) => ({\n");
 
+    // Collect all foreign keys to skip them
+    let mut foreign_keys: Vec<String> = Vec::new();
     for field in &model.fields {
-        // Skip auto-generated fields
-        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" {
+        if let Some(relation) = &field.relation {
+            if !relation.fields.is_empty() {
+                foreign_keys.extend(relation.fields.clone());
+            }
+        }
+    }
+
+    for field in &model.fields {
+        // Skip auto-generated fields and foreign keys
+        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" || foreign_keys.contains(&field.name) {
             continue;
         }
 
@@ -100,9 +110,10 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
                 } else {
                     format!("{}{}RelationInput", model.name, related_model)
                 };
+                let required_option = if field.is_required { ", required: true" } else { "" };
                 content.push_str(&format!(
-                    "    {}: t.field({{ type: {} }}),\n",
-                    field.name, relation_input_type
+                    "    {}: t.field({{ type: {}{} }}),\n",
+                    field.name, relation_input_type, required_option
                 ));
             }
             continue;
@@ -168,8 +179,18 @@ fn generate_update_input(model: &Model, dir: &Path) -> Result<()> {
     ));
     content.push_str("  fields: (t) => ({\n");
 
+    // Collect all foreign keys to skip them
+    let mut foreign_keys: Vec<String> = Vec::new();
     for field in &model.fields {
-        if field.is_id {
+        if let Some(relation) = &field.relation {
+            if !relation.fields.is_empty() {
+                foreign_keys.extend(relation.fields.clone());
+            }
+        }
+    }
+
+    for field in &model.fields {
+        if field.is_id || foreign_keys.contains(&field.name) {
             continue;
         }
 
@@ -501,9 +522,19 @@ fn generate_relation_create_input(model: &Model, dir: &Path) -> Result<()> {
     ));
     content.push_str("  fields: (t) => ({\n");
 
+    // Collect all foreign keys to skip them
+    let mut foreign_keys: Vec<String> = Vec::new();
     for field in &model.fields {
-        // Skip auto-generated fields
-        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" {
+        if let Some(relation) = &field.relation {
+            if !relation.fields.is_empty() {
+                foreign_keys.extend(relation.fields.clone());
+            }
+        }
+    }
+
+    for field in &model.fields {
+        // Skip auto-generated fields and foreign keys
+        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" || foreign_keys.contains(&field.name) {
             continue;
         }
 
@@ -522,9 +553,10 @@ fn generate_relation_create_input(model: &Model, dir: &Path) -> Result<()> {
                 } else {
                     format!("{}{}RelationInput", model.name, related_model)
                 };
+                let required_option = if field.is_required { ", required: true" } else { "" };
                 content.push_str(&format!(
-                    "    {}: t.field({{ type: {} }}),\n",
-                    field.name, relation_input_type
+                    "    {}: t.field({{ type: {}{} }}),\n",
+                    field.name, relation_input_type, required_option
                 ));
             }
             continue;
