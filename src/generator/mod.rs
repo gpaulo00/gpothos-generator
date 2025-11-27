@@ -14,7 +14,7 @@ use std::fs;
 use std::path::Path;
 
 /// Generate all Pothos code from parsed schema
-pub fn generate(schema: &ParsedSchema, output_dir: &Path) -> Result<()> {
+pub fn generate(schema: &ParsedSchema, output_dir: &Path, manual_resolvers: &crate::scanner::ManualResolvers) -> Result<()> {
     // Create output directories
     create_directories(output_dir)?;
 
@@ -37,7 +37,7 @@ pub fn generate(schema: &ParsedSchema, output_dir: &Path) -> Result<()> {
 
         models::generate_model(model, output_dir)?;
         inputs::generate_inputs(model, output_dir)?;
-        resolvers::generate_resolvers(model, schema, output_dir)?;
+        resolvers::generate_resolvers(model, schema, output_dir, manual_resolvers)?;
     }
 
     // Generate relation inputs (must be after all models are processed)
@@ -93,9 +93,12 @@ pub fn run_as_prisma_generator() -> Result<()> {
                             .and_then(|v| v.as_str())
                             .unwrap_or("./src/generated");
 
+
                         // Parse DMMF and generate
                         let schema = parse_dmmf(dmmf)?;
-                        generate(&schema, Path::new(output_path))?;
+                        // In prisma generator mode, we don't scan for manual resolvers
+                        let manual_resolvers = crate::scanner::ManualResolvers::new();
+                        generate(&schema, Path::new(output_path), &manual_resolvers)?;
                     }
                 }
 

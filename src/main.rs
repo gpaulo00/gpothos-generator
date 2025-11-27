@@ -1,5 +1,7 @@
 mod parser;
 mod generator;
+mod config;
+mod scanner;
 
 use std::fs;
 use std::io::ErrorKind;
@@ -35,6 +37,25 @@ fn main() -> Result<()> {
         println!("Parsing schema: {:?}", args.schema);
         println!("Output directory: {:?}", args.output);
 
+        // Load configuration from .gpothosrc.json
+        let config = config::Config::load()?;
+        
+        // Scan for manual resolvers if enabled
+        let manual_resolvers = if config.auto_scan {
+            if config.verbose {
+                println!("\n📋 Configuration loaded from .gpothosrc.json");
+                println!("  - Auto scan: {}", config.auto_scan);
+                println!("  - Scan dirs: {:?}", config.scan_dirs);
+                println!("  - Verbose: {}\n", config.verbose);
+            }
+            scanner::scan_for_manual_resolvers(&config.scan_dirs, config.verbose)?
+        } else {
+            if config.verbose {
+                println!("ℹ️  Auto scan disabled, skipping manual resolver detection\n");
+            }
+            scanner::ManualResolvers::new()
+        };
+
         let schema_content = std::fs::read_to_string(&args.schema)?;
         let parsed = parser::parse_schema(&schema_content)?;
 
@@ -54,7 +75,7 @@ fn main() -> Result<()> {
             }
         }
 
-        generator::generate(&parsed, &args.output)?;
+        generator::generate(&parsed, &args.output, &manual_resolvers)?;
 
         println!("Generation complete!");
     }

@@ -17,6 +17,10 @@ serde_json = "1"
 anyhow = "1"
 thiserror = "1"
 
+# File scanning
+regex = "1"
+walkdir = "2"
+
 [[bin]]
 name = "gpothos-generator"
 path = "src/main.rs"
