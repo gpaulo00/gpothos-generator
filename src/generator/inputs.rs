@@ -246,15 +246,15 @@ fn generate_where_input(model: &Model, dir: &Path) -> Result<()> {
 
     // AND, OR, NOT
     content.push_str(&format!(
-        "    AND: t.field({{ type: [{}] }}),\n",
+        "    AND: t.field({{ type: ['{}'] as any }}),\n",
         input_name
     ));
     content.push_str(&format!(
-        "    OR: t.field({{ type: [{}] }}),\n",
+        "    OR: t.field({{ type: ['{}'] as any }}),\n",
         input_name
     ));
     content.push_str(&format!(
-        "    NOT: t.field({{ type: [{}] }}),\n",
+        "    NOT: t.field({{ type: ['{}'] as any }}),\n",
         input_name
     ));
 

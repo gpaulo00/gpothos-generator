@@ -125,6 +125,7 @@ export interface Context {
 
 // Initialize Pothos Builder with Prisma Plugin
 export const builder = new SchemaBuilder<{
+  // @ts-ignore
   PrismaTypes: PrismaTypes;
   Context: any; // TODO: put Context interface here (breaks)
   Scalars: {
@@ -137,6 +138,7 @@ export const builder = new SchemaBuilder<{
       Output: unknown;
     };
   };
+  // @ts-ignore
 }>({
   plugins: [PrismaPlugin, SimpleObjectsPlugin],
   prisma: {
