@@ -27,23 +27,24 @@ pub fn generate_resolvers(
 
     // Generate CRUD resolvers (in single directory for Pothos)
     // Check if each resolver exists manually before generating
+    // Note: createOne and updateOne are mutations, others are queries
     
-    if !manual_resolvers.contains_query(&names.create) {
+    if !manual_resolvers.contains_mutation(&names.create) {
         create_one::generate(model, &resolvers_dir, &resolvers_dir)?;
     } else {
-        println!("  ⏭️  Skipping createOne{} (manual resolver found: {})", model.name, names.create);
+        println!("  ⏭️  Skipping createOne{} (manual mutation found: {})", model.name, names.create);
     }
     
     if !manual_resolvers.contains_query(&names.find_many) {
         find_many::generate(model, &resolvers_dir, &resolvers_dir)?;
     } else {
-        println!("  ⏭️  Skipping findMany{} (manual resolver found: {})", model.name, names.find_many);
+        println!("  ⏭️  Skipping findMany{} (manual query found: {})", model.name, names.find_many);
     }
     
     if !manual_resolvers.contains_query(&names.find) {
         find_unique::generate(model, &resolvers_dir, &resolvers_dir)?;
     } else {
-        println!("  ⏭️  Skipping findUnique{} (manual resolver found: {})", model.name, names.find);
+        println!("  ⏭️  Skipping findUnique{} (manual query found: {})", model.name, names.find);
     }
     
     // Aggregate uses a different naming pattern
@@ -51,13 +52,13 @@ pub fn generate_resolvers(
     if !manual_resolvers.contains_query(&aggregate_name) {
         aggregate::generate(model, &resolvers_dir, &resolvers_dir)?;
     } else {
-        println!("  ⏭️  Skipping aggregate{} (manual resolver found: {})", model.name, aggregate_name);
+        println!("  ⏭️  Skipping aggregate{} (manual query found: {})", model.name, aggregate_name);
     }
     
-    if !manual_resolvers.contains_query(&names.update) {
+    if !manual_resolvers.contains_mutation(&names.update) {
         update_one::generate(model, &resolvers_dir, &resolvers_dir)?;
     } else {
-        println!("  ⏭️  Skipping updateOne{} (manual resolver found: {})", model.name, names.update);
+        println!("  ⏭️  Skipping updateOne{} (manual mutation found: {})", model.name, names.update);
     }
 
     // Generate relations resolver (always generate, as it's model-specific)

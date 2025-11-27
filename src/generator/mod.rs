@@ -320,7 +320,8 @@ fn generate_index(schema: &ParsedSchema, output_dir: &Path, manual_resolvers: &c
         let names = get_prisma_name(&model.name);
         
         // Only export resolvers that were actually generated (not skipped)
-        if !manual_resolvers.contains_query(&names.create) {
+        // Note: createOne and updateOne are mutations, others are queries
+        if !manual_resolvers.contains_mutation(&names.create) {
             content.push_str(&format!("export * from './resolvers/createOne{}';\n", model.name));
         }
         
@@ -337,7 +338,7 @@ fn generate_index(schema: &ParsedSchema, output_dir: &Path, manual_resolvers: &c
             content.push_str(&format!("export * from './resolvers/aggregate{}';\n", model.name));
         }
         
-        if !manual_resolvers.contains_query(&names.update) {
+        if !manual_resolvers.contains_mutation(&names.update) {
             content.push_str(&format!("export * from './resolvers/updateOne{}';\n", model.name));
         }
     }
