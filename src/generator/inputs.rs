@@ -33,6 +33,8 @@ pub fn generate_inputs(model: &Model, output_dir: &Path) -> Result<()> {
     // Generate relation-specific input types
     generate_where_unique_input_for_relations(model, &inputs_dir)?;
     generate_relation_create_input(model, &inputs_dir)?;
+    generate_relation_filter(model, &inputs_dir)?;
+    generate_list_relation_filter(model, &inputs_dir)?;
 
     Ok(())
 }
@@ -90,19 +92,16 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
     }
 
     for field in &model.fields {
-        // Skip auto-generated fields and foreign keys
-        if field.is_updated_at || field.name == "created_at" || field.name == "updated_at" || foreign_keys.contains(&field.name) {
+        // Skip only foreign keys (for backward compatibility, include all timestamp fields)
+        if foreign_keys.contains(&field.name) {
             continue;
         }
 
         // Handle relation fields
-        if let Some(relation) = &field.relation {
-            // Include only relations WITH fields (the "owning" side with foreign key)
-            // These are the ones where we can connect/create related records
-            // Skip reverse relations (without fields) to avoid duplication
-            if relation.fields.is_empty() {
-                continue;
-            }
+        if let Some(_relation) = &field.relation {
+            // Include ALL relation fields for nested creates
+            // Both owning side (with foreign keys) and reverse side (without foreign keys)
+            // Prisma supports nested creates for both
             
             if let FieldType::Model(related_model) = &field.field_type {
                 let relation_input_type = if field.is_list {
@@ -190,7 +189,8 @@ fn generate_update_input(model: &Model, dir: &Path) -> Result<()> {
     }
 
     for field in &model.fields {
-        if field.is_id || foreign_keys.contains(&field.name) {
+        // Skip only foreign keys (for backward compatibility, include id and timestamps)
+        if foreign_keys.contains(&field.name) {
             continue;
         }
 
@@ -234,7 +234,32 @@ fn generate_where_input(model: &Model, dir: &Path) -> Result<()> {
     let mut content = String::new();
 
     content.push_str("import { builder } from \"../builder\";\n");
-    content.push_str("import { StringFilter, IntFilter, FloatFilter, BoolFilter, DateTimeFilter } from \"./filters\";\n\n");
+    content.push_str("import { StringFilter, IntFilter, FloatFilter, BoolFilter, DateTimeFilter } from \"./filters\";\n");
+    
+    // Import RelationFilter and ListRelationFilter types for related models
+    let mut related_filters: Vec<String> = Vec::new();
+    for field in &model.fields {
+        if let Some(_relation) = &field.relation {
+            if let FieldType::Model(related_model) = &field.field_type {
+                let filter_name = if field.is_list {
+                    format!("{}ListRelationFilter", related_model)
+                } else {
+                    format!("{}RelationFilter", related_model)
+                };
+                if !related_filters.contains(&filter_name) {
+                    related_filters.push(filter_name.clone());
+                }
+            }
+        }
+    }
+    
+    if !related_filters.is_empty() {
+        for filter in &related_filters {
+            content.push_str(&format!("import {{ {} }} from \"./{}\";\n", filter, filter));
+        }
+    }
+    
+    content.push('\n');
 
     let input_name = names.where_input;
 
@@ -271,6 +296,32 @@ fn generate_where_input(model: &Model, dir: &Path) -> Result<()> {
         ));
     }
 
+    // Relation fields with nested WhereInput
+    for field in &model.fields {
+        if field.relation.is_none() {
+            continue;
+        }
+
+        if let FieldType::Model(related_model) = &field.field_type {
+            let _related_names = get_prisma_name(related_model);
+            if field.is_list {
+                // List relations use ListRelationFilter with some/every/none
+                let list_relation_filter_name = format!("{}ListRelationFilter", related_model);
+                content.push_str(&format!(
+                    "    {}: t.field({{ type: {} }}),\n",
+                    field.name, list_relation_filter_name
+                ));
+            } else {
+                // Single relations use a RelationFilter with is/isNot
+                let relation_filter_name = format!("{}RelationFilter", related_model);
+                content.push_str(&format!(
+                    "    {}: t.field({{ type: {} }}),\n",
+                    field.name, relation_filter_name
+                ));
+            }
+        }
+    }
+
     content.push_str("  }),\n");
     content.push_str("});\n");
 
@@ -293,10 +344,13 @@ fn generate_where_unique_input(model: &Model, dir: &Path) -> Result<()> {
     ));
     content.push_str("  fields: (t) => ({\n");
 
-    // ID and unique fields
+    // ID and unique fields (all optional - user can specify any one)
     for field in &model.fields {
         if field.is_id || field.is_unique {
-            let field_code = generate_input_field(&field.field_type, &field.name, false, "required: true");
+            if field.relation.is_some() {
+                continue; // Skip relation fields in WhereUnique
+            }
+            let field_code = generate_input_field(&field.field_type, &field.name, false, "");
             content.push_str(&format!("    {},\n", field_code));
         }
     }
@@ -576,6 +630,56 @@ fn generate_relation_create_input(model: &Model, dir: &Path) -> Result<()> {
     content.push_str("});\n");
 
     fs::write(dir.join(format!("{}.ts", input_name)), content)?;
+
+    Ok(())
+}
+/// Generate RelationFilter input type for a model (used in WhereInput for relation filtering)
+fn generate_relation_filter(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
+    let mut content = String::new();
+
+    content.push_str("import { builder } from \"../builder\";\n");
+    content.push_str(&format!("import {{ {} }} from \"./{}\";\n\n", names.where_input, names.where_input));
+
+    let filter_name = format!("{}RelationFilter", model.name);
+
+    content.push_str(&format!(
+        "export const {} = builder.inputType(\"{}\", {{\n",
+        filter_name, filter_name
+    ));
+    content.push_str("  fields: (t) => ({\n");
+    content.push_str(&format!("    is: t.field({{ type: {} }}),\n", names.where_input));
+    content.push_str(&format!("    isNot: t.field({{ type: {} }}),\n", names.where_input));
+    content.push_str("  }),\n");
+    content.push_str("});\n");
+
+    fs::write(dir.join(format!("{}.ts", filter_name)), content)?;
+
+    Ok(())
+}
+
+/// Generate ListRelationFilter input type for a model (used in WhereInput for list relation filtering)
+fn generate_list_relation_filter(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
+    let mut content = String::new();
+
+    content.push_str("import { builder } from \"../builder\";\n");
+    content.push_str(&format!("import {{ {} }} from \"./{}\";\n\n", names.where_input, names.where_input));
+
+    let filter_name = format!("{}ListRelationFilter", model.name);
+
+    content.push_str(&format!(
+        "export const {} = builder.inputType(\"{}\", {{\n",
+        filter_name, filter_name
+    ));
+    content.push_str("  fields: (t) => ({\n");
+    content.push_str(&format!("    every: t.field({{ type: {} }}),\n", names.where_input));
+    content.push_str(&format!("    some: t.field({{ type: {} }}),\n", names.where_input));
+    content.push_str(&format!("    none: t.field({{ type: {} }}),\n", names.where_input));
+    content.push_str("  }),\n");
+    content.push_str("});\n");
+
+    fs::write(dir.join(format!("{}.ts", filter_name)), content)?;
 
     Ok(())
 }

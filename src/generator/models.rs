@@ -17,6 +17,16 @@ pub fn generate_model(model: &Model, output_dir: &Path) -> Result<()> {
         }
     }
 
+    // Collect all related models for importing their input types
+    let mut related_models: HashSet<String> = HashSet::new();
+    for field in &model.fields {
+        if let Some(_relation) = &field.relation {
+            if let FieldType::Model(related_model) = &field.field_type {
+                related_models.insert(related_model.clone());
+            }
+        }
+    }
+
     let mut content = String::new();
 
     // Imports
@@ -26,6 +36,21 @@ pub fn generate_model(model: &Model, output_dir: &Path) -> Result<()> {
     if !used_enums.is_empty() {
         let enum_imports: Vec<String> = used_enums.into_iter().collect();
         content.push_str(&format!("import {{ {} }} from \"../enums\";\n", enum_imports.join(", ")));
+    }
+    
+    // Import WhereInput and OrderByInput types for related models
+    if !related_models.is_empty() {
+        for related_model in &related_models {
+            let names = crate::generator::get_prisma_name(related_model);
+            content.push_str(&format!(
+                "import {{ {} }} from \"../inputs/{}\";\n",
+                names.where_input, names.where_input
+            ));
+            content.push_str(&format!(
+                "import {{ {} }} from \"../inputs/{}\";\n",
+                names.order_by_input, names.order_by_input
+            ));
+        }
     }
     content.push('\n');
 
@@ -55,17 +80,45 @@ pub fn generate_model(model: &Model, output_dir: &Path) -> Result<()> {
         let nullable = if field.is_required { "" } else { "nullable: true" };
 
         if field.is_list {
-            content.push_str(&format!(
-                "    {}: t.relation(\"{}\", {{\n",
-                field.name, field.name
-            ));
-            content.push_str("      query: () => ({}),\n");
-            content.push_str("    }),\n");
+            if let FieldType::Model(related_model) = &field.field_type {
+                let names = crate::generator::get_prisma_name(related_model);
+                content.push_str(&format!(
+                    "    {}: t.relation(\"{}\", {{\n",
+                    field.name, field.name
+                ));
+                content.push_str("      query: (args) => ({\n");
+                content.push_str("        where: args.where,\n");
+                content.push_str("        take: args.first,\n");
+                content.push_str("        skip: args.last ? -args.last : undefined,\n");
+                content.push_str("        orderBy: args.orderBy,\n");
+                content.push_str("      }),\n");
+                content.push_str("      args: {\n");
+                content.push_str(&format!("        where: t.arg({{ type: {} }}),\n", names.where_input));
+                content.push_str("        first: t.arg.int(),\n");
+                content.push_str("        last: t.arg.int(),\n");
+                content.push_str(&format!("        orderBy: t.arg({{ type: [{}] }}),\n", names.order_by_input));
+                content.push_str("      },\n");
+                content.push_str("    }),\n");
+            }
         } else {
-            content.push_str(&format!(
-                "    {}: t.relation(\"{}\", {{ {} }}),\n",
-                field.name, field.name, nullable
-            ));
+            // Single relations - add where filter for conditional loading
+            if let FieldType::Model(related_model) = &field.field_type {
+                let names = crate::generator::get_prisma_name(related_model);
+                content.push_str(&format!(
+                    "    {}: t.relation(\"{}\", {{\n",
+                    field.name, field.name
+                ));
+                if !nullable.is_empty() {
+                    content.push_str(&format!("      {},\n", nullable));
+                }
+                content.push_str("      query: (args) => ({\n");
+                content.push_str("        where: args.where,\n");
+                content.push_str("      }),\n");
+                content.push_str("      args: {\n");
+                content.push_str(&format!("        where: t.arg({{ type: {} }}),\n", names.where_input));
+                content.push_str("      },\n");
+                content.push_str("    }),\n");
+            }
         }
     }
 
