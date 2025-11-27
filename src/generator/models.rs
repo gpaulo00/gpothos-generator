@@ -87,13 +87,13 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
                 format!("{}: t.exposeStringList(\"{}\", {{ {} }})",
                     field.name, field.name, nullable_opt)
             } else if field.is_id {
-                format!("{}: t.exposeID(\"{}\"{})",
+                format!("{}: t.exposeString(\"{}\"{})",
                     field.name, field.name,
-                    if !field.is_required { ", { nullable: true }" } else { "" })
+                    if !field.is_required { ", { nullable: true }" } else { ", { nullable: false }" })
             } else {
                 format!("{}: t.exposeString(\"{}\"{})",
                     field.name, field.name,
-                    if !field.is_required { ", { nullable: true }" } else { "" })
+                    if !field.is_required { ", { nullable: true }" } else { ", { nullable: false }" })
             }
         }
         FieldType::Int => {
@@ -103,7 +103,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.exposeInt(\"{}\"{})",
                     field.name, field.name,
-                    if !field.is_required { ", { nullable: true }" } else { "" })
+                    if !field.is_required { ", { nullable: true }" } else { ", { nullable: false }" })
             }
         }
         FieldType::Float => {
@@ -113,7 +113,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.exposeFloat(\"{}\"{})",
                     field.name, field.name,
-                    if !field.is_required { ", { nullable: true }" } else { "" })
+                    if !field.is_required { ", { nullable: true }" } else { ", { nullable: false }" })
             }
         }
         FieldType::Boolean => {
@@ -123,7 +123,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.exposeBoolean(\"{}\"{})",
                     field.name, field.name,
-                    if !field.is_required { ", { nullable: true }" } else { "" })
+                    if !field.is_required { ", { nullable: true }" } else { ", { nullable: false }" })
             }
         }
         // Types that need explicit type specification
@@ -134,7 +134,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.field({{ type: \"DateTime\", resolve: (parent) => parent.{}{} }})",
                     field.name, field.name,
-                    if !field.is_required { ", nullable: true" } else { "" })
+                    if !field.is_required { ", nullable: true" } else { ", nullable: false" })
             }
         }
         FieldType::Json => {
@@ -144,7 +144,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.field({{ type: \"JSON\", resolve: (parent) => parent.{}{} }})",
                     field.name, field.name,
-                    if !field.is_required { ", nullable: true" } else { "" })
+                    if !field.is_required { ", nullable: true" } else { ", nullable: false" })
             }
         }
         FieldType::Decimal => {
@@ -155,7 +155,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.field({{ type: \"String\", resolve: (parent) => parent.{}?.toString(){} }})",
                     field.name, field.name,
-                    if !field.is_required { ", nullable: true" } else { "" })
+                    if !field.is_required { ", nullable: true" } else { ", nullable: false" })
             }
         }
         FieldType::BigInt => {
@@ -166,7 +166,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.field({{ type: \"String\", resolve: (parent) => parent.{}?.toString(){} }})",
                     field.name, field.name,
-                    if !field.is_required { ", nullable: true" } else { "" })
+                    if !field.is_required { ", nullable: true" } else { ", nullable: false" })
             }
         }
         FieldType::Bytes => {
@@ -177,7 +177,7 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.field({{ type: \"String\", resolve: (parent) => parent.{}?.toString('base64'){} }})",
                     field.name, field.name,
-                    if !field.is_required { ", nullable: true" } else { "" })
+                    if !field.is_required { ", nullable: true" } else { ", nullable: false" })
             }
         }
         FieldType::Enum(enum_name) => {
@@ -187,14 +187,14 @@ fn generate_field_code(field: &crate::parser::Field) -> String {
             } else {
                 format!("{}: t.field({{ type: {}, resolve: (parent) => parent.{}{} }})",
                     field.name, enum_name, field.name,
-                    if !field.is_required { ", nullable: true" } else { "" })
+                    if !field.is_required { ", nullable: true" } else { ", nullable: false" })
             }
         }
         FieldType::Model(_) => {
             // This shouldn't happen for non-relation fields, but handle it
             format!("{}: t.exposeString(\"{}\"{})",
                 field.name, field.name,
-                if !field.is_required { ", { nullable: true }" } else { "" })
+                if !field.is_required { ", { nullable: true }" } else { ", { nullable: false }" })
         }
     }
 }
