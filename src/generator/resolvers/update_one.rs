@@ -16,7 +16,7 @@ import {{ {model}WhereUniqueInput }} from "../inputs/{model}WhereUniqueInput";
 builder.mutationField("{mutation_name}", (t) =>
   t.prismaField({{
     type: "{model}",
-    nullable: true,
+    nullable: false,
     args: {{
       where: t.arg({{ type: {model}WhereUniqueInput, required: true }}),
       data: t.arg({{ type: {model}UpdateInput, required: true }}),

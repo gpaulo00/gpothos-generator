@@ -14,6 +14,7 @@ import {{ {model}CreateInput }} from "../inputs/{model}CreateInput";
 
 builder.mutationField("{mutation_name}", (t) =>
   t.prismaField({{
+    nullable: false,
     type: "{model}",
     args: {{
       data: t.arg({{ type: {model}CreateInput, required: true }}),
