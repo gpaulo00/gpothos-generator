@@ -3,7 +3,7 @@ target/
 **/target/
 
 # Dependencies
-Cargo.lock  # Keep this if you want to lock dependencies, remove if only libraries
+#Cargo.lock  # Keep this if you want to lock dependencies, remove if only libraries
 
 # Editor files
 *.swp
@@ -38,3 +38,7 @@ Icon?
 # Test and coverage
 coverage/
 .cargo/
+
+# prisma
+schema.prisma
+generated/
