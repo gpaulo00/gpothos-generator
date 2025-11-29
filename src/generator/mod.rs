@@ -14,34 +14,44 @@ use std::fs;
 use std::path::Path;
 
 /// Generate all Pothos code from parsed schema
-pub fn generate(schema: &ParsedSchema, output_dir: &Path, manual_resolvers: &crate::scanner::ManualResolvers) -> Result<()> {
+pub fn generate(schema: &ParsedSchema, output_dir: &Path, manual_resolvers: &crate::scanner::ManualResolvers, verbose: bool) -> Result<()> {
     // Create output directories
     create_directories(output_dir)?;
 
     // Generate builder (contains scalars, context, etc.)
-    println!("Generating builder...");
+    if verbose {
+        println!("Generating builder...");
+    }
     helpers::generate_helpers(output_dir)?;
 
     // Generate enums
-    println!("Generating enums...");
+    if verbose {
+        println!("Generating enums...");
+    }
     enums::generate_base_enums(output_dir)?;
     enums::generate_schema_enums(schema, output_dir)?;
 
     // Generate filters
-    println!("Generating filters...");
+    if verbose {
+        println!("Generating filters...");
+    }
     filters::generate_filters(output_dir)?;
 
     // Generate per-model files
     for model in &schema.models {
-        println!("Generating for model: {}", model.name);
+        if verbose {
+            println!("Generating for model: {}", model.name);
+        }
 
         models::generate_model(model, output_dir)?;
         inputs::generate_inputs(model, output_dir)?;
-        resolvers::generate_resolvers(model, schema, output_dir, manual_resolvers)?;
+        resolvers::generate_resolvers(model, schema, output_dir, manual_resolvers, verbose)?;
     }
 
     // Generate relation inputs (must be after all models are processed)
-    println!("Generating relation inputs...");
+    if verbose {
+        println!("Generating relation inputs...");
+    }
     relations::generate_all_relation_inputs(schema, output_dir)?;
 
     // Generate index file
@@ -98,7 +108,7 @@ pub fn run_as_prisma_generator() -> Result<()> {
                         let schema = parse_dmmf(dmmf)?;
                         // In prisma generator mode, we don't scan for manual resolvers
                         let manual_resolvers = crate::scanner::ManualResolvers::new();
-                        generate(&schema, Path::new(output_path), &manual_resolvers)?;
+                        generate(&schema, Path::new(output_path), &manual_resolvers, false)?;
                     }
                 }
 

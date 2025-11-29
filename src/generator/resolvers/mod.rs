@@ -16,6 +16,7 @@ pub fn generate_resolvers(
     schema: &ParsedSchema, 
     output_dir: &Path,
     manual_resolvers: &crate::scanner::ManualResolvers,
+    verbose: bool,
 ) -> Result<()> {
     use crate::generator::get_prisma_name;
     
@@ -31,19 +32,19 @@ pub fn generate_resolvers(
     
     if !manual_resolvers.contains_mutation(&names.create) {
         create_one::generate(model, &resolvers_dir, &resolvers_dir)?;
-    } else {
+    } else if verbose {
         println!("  ⏭️  Skipping createOne{} (manual mutation found: {})", model.name, names.create);
     }
     
     if !manual_resolvers.contains_query(&names.find_many) {
         find_many::generate(model, &resolvers_dir, &resolvers_dir)?;
-    } else {
+    } else if verbose {
         println!("  ⏭️  Skipping findMany{} (manual query found: {})", model.name, names.find_many);
     }
     
     if !manual_resolvers.contains_query(&names.find) {
         find_unique::generate(model, &resolvers_dir, &resolvers_dir)?;
-    } else {
+    } else if verbose {
         println!("  ⏭️  Skipping findUnique{} (manual query found: {})", model.name, names.find);
     }
     
@@ -51,13 +52,13 @@ pub fn generate_resolvers(
     let aggregate_name = format!("aggregate{}", model.name);
     if !manual_resolvers.contains_query(&aggregate_name) {
         aggregate::generate(model, &resolvers_dir, &resolvers_dir)?;
-    } else {
+    } else if verbose {
         println!("  ⏭️  Skipping aggregate{} (manual query found: {})", model.name, aggregate_name);
     }
     
     if !manual_resolvers.contains_mutation(&names.update) {
         update_one::generate(model, &resolvers_dir, &resolvers_dir)?;
-    } else {
+    } else if verbose {
         println!("  ⏭️  Skipping updateOne{} (manual mutation found: {})", model.name, names.update);
     }
 

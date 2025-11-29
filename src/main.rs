@@ -75,7 +75,7 @@ fn main() -> Result<()> {
             }
         }
 
-        generator::generate(&parsed, &args.output, &manual_resolvers)?;
+        generator::generate(&parsed, &args.output, &manual_resolvers, config.verbose)?;
 
         println!("Generation complete!");
     }
