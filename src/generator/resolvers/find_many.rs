@@ -15,6 +15,7 @@ import {{ {model}OrderByInput }} from "../inputs/{model}OrderByInput";
 
 builder.queryField("{query_name}", (t) =>
   t.prismaField({{
+    nullable: false,
     type: ["{model}"],
     args: {{
       where: t.arg({{ type: {model}WhereInput }}),
