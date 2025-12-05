@@ -12,7 +12,7 @@ pub fn generate(model: &Model, resolver_dir: &Path, _args_dir: &Path) -> Result<
 import {{ {model}WhereInput }} from "../inputs/{model}WhereInput";
 
 // Define aggregate result type
-const {model}AggregateResult = builder.simpleObject("{model}AggregateResult", {{
+const {model}AggregateResult = builder.simpleObject("Aggregate{model}", {{
   fields: (t) => ({{
     _count: t.int({{}}),
   }}),

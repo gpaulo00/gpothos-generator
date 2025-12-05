@@ -77,8 +77,6 @@ pub fn generate_model(model: &Model, output_dir: &Path) -> Result<()> {
             continue;
         }
 
-        let nullable = if field.is_required { "" } else { "nullable: true" };
-
         if field.is_list {
             if let FieldType::Model(related_model) = &field.field_type {
                 let names = crate::generator::get_prisma_name(related_model);
@@ -86,6 +84,7 @@ pub fn generate_model(model: &Model, output_dir: &Path) -> Result<()> {
                     "    {}: t.relation(\"{}\", {{\n",
                     field.name, field.name
                 ));
+                content.push_str("      nullable: false,\n");
                 content.push_str("      query: (args) => ({\n");
                 content.push_str("        where: args.where,\n");
                 content.push_str("        take: args.first,\n");
@@ -104,13 +103,12 @@ pub fn generate_model(model: &Model, output_dir: &Path) -> Result<()> {
             // Single relations - add where filter for conditional loading
             if let FieldType::Model(related_model) = &field.field_type {
                 let names = crate::generator::get_prisma_name(related_model);
+                let nullable = if field.is_required { "nullable: false" } else { "nullable: true" };
                 content.push_str(&format!(
                     "    {}: t.relation(\"{}\", {{\n",
                     field.name, field.name
                 ));
-                if !nullable.is_empty() {
-                    content.push_str(&format!("      {},\n", nullable));
-                }
+                content.push_str(&format!("      {},\n", nullable));
                 content.push_str("      query: (args) => ({\n");
                 content.push_str("        where: args.where,\n");
                 content.push_str("      }),\n");
