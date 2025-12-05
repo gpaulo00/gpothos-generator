@@ -31,6 +31,15 @@ pub fn get_prisma_name(model: &str) -> PrismaNames {
     }
 }
 
+/// Capitalize only the first letter of a string (e.g., "place" -> "Place", "place_operation" -> "Place_operation")
+pub fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+    }
+}
+
 /// Convert snake_case to camelCase
 fn to_camel_case(input: &str) -> String {
     let parts: Vec<&str> = input.split('_').collect();
