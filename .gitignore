@@ -42,3 +42,5 @@ coverage/
 # prisma
 schema.prisma
 generated/
+bin/gpothos-generator
+bin/gpothos-generator.exe

@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Generador de código para el proyecto principal.",
   "bin": {
-    "gpothos-generator": "target/release/gpothos-generator"
+    "gpothos-generator": "bin/cli.js"
   },
   "scripts": {
-    "postinstall": "cargo install --path . --root ." 
+    "install": "node scripts/install.js"
   }
 }
