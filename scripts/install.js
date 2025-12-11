@@ -5,19 +5,44 @@ const { execSync } = require('child_process');
 
 const packageJson = require('../package.json');
 const version = packageJson.version;
-const REPO = 'gpaulo00/gpothos-generator'; // Adjust based on your username/repo
+const REPO = 'gpaulo00/gpothos-generator'; 
 const BIN_NAME = 'gpothos-generator';
 
 const supportedPlatforms = {
-  'linux-x64': 'gpothos-linux-amd64',
+  'linux-x64': 'gpothos-linux-amd64',       // Por defecto (glibc)
   'linux-arm64': 'gpothos-linux-arm64',
   'darwin-x64': 'gpothos-darwin-amd64',
   'darwin-arm64': 'gpothos-darwin-arm64',
   'win32-x64': 'gpothos-windows-amd64.exe',
 };
 
+// --- NUEVA LÓGICA: Detección de Musl/Alpine ---
+function isMusl() {
+  if (process.platform !== 'linux') return false;
+  
+  // 1. Chequeo rápido: Archivo específico de Alpine
+  if (fs.existsSync('/etc/alpine-release')) return true;
+
+  // 2. Chequeo robusto: Verificar ldd
+  try {
+    const output = execSync('ldd --version 2>&1', { encoding: 'utf8' });
+    if (output.includes('musl')) return true;
+  } catch (e) {
+    // Si ldd falla o no existe, asumimos glibc por defecto
+    return false;
+  }
+  return false;
+}
+// ----------------------------------------------
+
 const platformKey = `${process.platform}-${process.arch}`;
-const artifactName = supportedPlatforms[platformKey];
+let artifactName = supportedPlatforms[platformKey];
+
+// Si es Linux x64 y detectamos Musl, cambiamos el binario
+if (platformKey === 'linux-x64' && isMusl()) {
+  console.log('Detected Alpine/Musl environment. Switching to musl binary.');
+  artifactName = 'gpothos-linux-musl-amd64';
+}
 
 if (!artifactName) {
   console.error(`Unsupported platform: ${platformKey}`);
@@ -54,6 +79,7 @@ https.get(url, (response) => {
 function download(response) {
   if (response.statusCode !== 200) {
     console.error(`Failed to download binary. Status Code: ${response.statusCode}`);
+    console.error(`URL attempted: ${url}`);
     process.exit(1);
   }
 
