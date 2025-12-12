@@ -120,7 +120,7 @@ pub struct PrismaNames {
 pub fn generate_helpers(output_dir: &Path) -> Result<()> {
     let content = r#"import SchemaBuilder from "@pothos/core";
 import PrismaPlugin from "@pothos/plugin-prisma";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import SimpleObjectsPlugin from '@pothos/plugin-simple-objects';
 import type PrismaTypes from "@pothos/plugin-prisma/generated";
 
@@ -152,6 +152,7 @@ export const builder = new SchemaBuilder<{
   plugins: [PrismaPlugin, SimpleObjectsPlugin],
   prisma: {
     client: prisma,
+    dmmf: Prisma.dmmf,
     exposeDescriptions: true,
     filterConnectionTotalCount: true,
   },
