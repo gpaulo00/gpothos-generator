@@ -1,6 +1,6 @@
 {
   "name": "gpothos-generator",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Generador de código para el proyecto principal.",
   "bin": {
     "gpothos-generator": "bin/cli.js"
