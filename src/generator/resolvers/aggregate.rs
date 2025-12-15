@@ -16,7 +16,7 @@ pub fn generate(model: &Model, resolver_dir: &Path, _args_dir: &Path) -> Result<
 import {{ {model}WhereInput }} from "../inputs/{model}WhereInput";
 
 // Define aggregate result type
-const {model}AggregateResult = builder.simpleObject("Aggregate{model}", {{
+const {capitalized_model}AggregateResult = builder.simpleObject("Aggregate{capitalized_model}", {{
   fields: (t) => ({{
     _count: t.int({{}}),
   }}),
@@ -24,7 +24,7 @@ const {model}AggregateResult = builder.simpleObject("Aggregate{model}", {{
 
 builder.queryField("{aggregate_name}", (t) =>
   t.field({{
-    type: {model}AggregateResult,
+    type: {capitalized_model}AggregateResult,
     nullable: false,
     args: {{
       where: t.arg({{ type: {model}WhereInput }}),
@@ -42,6 +42,7 @@ builder.queryField("{aggregate_name}", (t) =>
 );
 "#,
         model = model.name,
+        capitalized_model = capitalized_model,
         aggregate_name = aggregate_name,
         prisma_model = names.query_new2  // Use query_new2 for Prisma client calls
     );

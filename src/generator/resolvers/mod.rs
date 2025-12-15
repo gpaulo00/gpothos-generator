@@ -1,4 +1,5 @@
 mod create_one;
+mod create_many;
 mod find_many;
 mod find_unique;
 mod aggregate;
@@ -34,6 +35,12 @@ pub fn generate_resolvers(
         create_one::generate(model, &resolvers_dir, &resolvers_dir)?;
     } else if verbose {
         println!("  ⏭️  Skipping createOne{} (manual mutation found: {})", model.name, names.create);
+    }
+    
+    if !manual_resolvers.contains_mutation(&names.create_many) {
+        create_many::generate(model, &resolvers_dir, &resolvers_dir)?;
+    } else if verbose {
+        println!("  ⏭️  Skipping createMany{} (manual mutation found: {})", model.name, names.create_many);
     }
     
     if !manual_resolvers.contains_query(&names.find_many) {

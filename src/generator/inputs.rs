@@ -25,6 +25,7 @@ pub fn generate_inputs(model: &Model, output_dir: &Path) -> Result<()> {
     fs::create_dir_all(&inputs_dir)?;
 
     generate_create_input(model, &inputs_dir)?;
+    generate_create_many_input(model, &inputs_dir)?;
     generate_update_input(model, &inputs_dir)?;
     generate_where_input(model, &inputs_dir)?;
     generate_where_unique_input(model, &inputs_dir)?;
@@ -118,6 +119,54 @@ fn generate_create_input(model: &Model, dir: &Path) -> Result<()> {
             continue;
         }
 
+        let required = if field.is_id || !field.is_required || field.default_value.is_some() {
+            ""
+        } else {
+            "required: true"
+        };
+
+        let field_code = generate_input_field(&field.field_type, &field.name, field.is_list, required);
+        content.push_str(&format!("    {},\n", field_code));
+    }
+
+    content.push_str("  }),\n");
+    content.push_str("});\n");
+
+    fs::write(dir.join(format!("{}.ts", input_name)), content)?;
+
+    Ok(())
+}
+
+/// Generate CreateManyInput - only scalar fields and foreign keys, NO nested relations
+fn generate_create_many_input(model: &Model, dir: &Path) -> Result<()> {
+    let names = get_prisma_name(&model.name);
+    let mut content = String::new();
+    let used_enums = collect_enum_types(model);
+
+    content.push_str("import { builder } from \"../builder\";\n");
+    if !used_enums.is_empty() {
+        let enum_imports: Vec<String> = used_enums.into_iter().collect();
+        content.push_str(&format!("import {{ {} }} from \"../enums\";\n", enum_imports.join(", ")));
+    }
+    content.push('\n');
+
+    let input_name = names.create_many_input;
+
+    content.push_str(&format!(
+        "export const {} = builder.inputType(\"{}\", {{\n",
+        input_name, input_name
+    ));
+    content.push_str("  fields: (t) => ({\n");
+
+    for field in &model.fields {
+        // Skip relation fields entirely - createMany doesn't support nested creates
+        if field.relation.is_some() {
+            continue;
+        }
+
+        // Include foreign keys for createMany (unlike createOne which skips them)
+        // The foreign key fields are scalar fields that reference other tables
+        
         let required = if field.is_id || !field.is_required || field.default_value.is_some() {
             ""
         } else {

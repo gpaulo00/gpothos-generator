@@ -319,6 +319,7 @@ fn generate_index(schema: &ParsedSchema, output_dir: &Path, manual_resolvers: &c
     for model in &schema.models {
         let names = get_prisma_name(&model.name);
         content.push_str(&format!("export * from './inputs/{}';\n", names.create_input));
+        content.push_str(&format!("export * from './inputs/{}';\n", names.create_many_input));
         content.push_str(&format!("export * from './inputs/{}';\n", names.update_input));
         content.push_str(&format!("export * from './inputs/{}';\n", names.where_input));
         content.push_str(&format!("export * from './inputs/{}';\n", names.where_unique_input));
@@ -330,9 +331,13 @@ fn generate_index(schema: &ParsedSchema, output_dir: &Path, manual_resolvers: &c
         let names = get_prisma_name(&model.name);
         
         // Only export resolvers that were actually generated (not skipped)
-        // Note: createOne and updateOne are mutations, others are queries
+        // Note: createOne, createMany and updateOne are mutations, others are queries
         if !manual_resolvers.contains_mutation(&names.create) {
             content.push_str(&format!("export * from './resolvers/createOne{}';\n", model.name));
+        }
+        
+        if !manual_resolvers.contains_mutation(&names.create_many) {
+            content.push_str(&format!("export * from './resolvers/createMany{}';\n", model.name));
         }
         
         if !manual_resolvers.contains_query(&names.find_many) {

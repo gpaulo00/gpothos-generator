@@ -19,12 +19,14 @@ pub fn get_prisma_name(model: &str) -> PrismaNames {
         model: model.to_string(),
         update: format!("updateOne{}", model),
         create: format!("createOne{}", model),
+        create_many: format!("createMany{}", capitalize_first(model)),
         find: camel_case.clone(),  // This corresponds to minusStar with camelCase transformation
         find_many: pluralize_query_name(&camel_case), // This is based on minusStar (camelCase) with pluralization
         where_input: format!("{}WhereInput", model),
         where_unique_input: format!("{}WhereUniqueInput", model),
         order_by_input: format!("{}OrderByInput", model),
         create_input: format!("{}CreateInput", model),
+        create_many_input: format!("{}CreateManyInput", capitalize_first(model)),
         update_input: format!("{}UpdateInput", model),
         query_new: pluralize_find_many_name_original(&lower_first),  // Use lower_first version (without camelCase) for query_new
         query_new2: lower_first.clone(), // querynew2 is (model.charAt(0).toLowerCase() + model.slice(1)) WITHOUT camelCase transformation
@@ -105,12 +107,14 @@ pub struct PrismaNames {
     pub model: String,
     pub update: String,
     pub create: String,
+    pub create_many: String,
     pub find: String,
     pub find_many: String,
     pub where_input: String,
     pub where_unique_input: String,
     pub order_by_input: String,
     pub create_input: String,
+    pub create_many_input: String,
     pub update_input: String,
     pub query_new: String,
     pub query_new2: String,
@@ -170,9 +174,17 @@ builder.scalarType("JSON", {
   parseValue: (value) => value,
 });
 
+// AffectedRowsOutput type for createMany operations
+export const AffectedRowsOutput = builder.simpleObject("AffectedRowsOutput", {
+  fields: (t) => ({
+    count: t.int({ nullable: false }),
+  }),
+});
+
 // Initialize Query and Mutation types
 builder.queryType({});
 builder.mutationType({});
+builder.subscriptionType({});
 "#;
 
     fs::write(output_dir.join("builder.ts"), content)?;
