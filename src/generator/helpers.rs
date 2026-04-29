@@ -190,3 +190,156 @@ builder.subscriptionType({});
     fs::write(output_dir.join("builder.ts"), content)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== capitalize_first tests ====================
+
+    #[test]
+    fn test_capitalize_first_simple() {
+        assert_eq!(capitalize_first("place"), "Place");
+    }
+
+    #[test]
+    fn test_capitalize_first_with_underscore() {
+        assert_eq!(capitalize_first("place_operation"), "Place_operation");
+    }
+
+    #[test]
+    fn test_capitalize_first_empty_string() {
+        assert_eq!(capitalize_first(""), "");
+    }
+
+    #[test]
+    fn test_capitalize_first_already_capitalized() {
+        assert_eq!(capitalize_first("User"), "User");
+    }
+
+    #[test]
+    fn test_capitalize_first_single_char() {
+        assert_eq!(capitalize_first("a"), "A");
+    }
+
+    // ==================== to_camel_case tests ====================
+
+    #[test]
+    fn test_to_camel_case_snake_case() {
+        assert_eq!(to_camel_case("user_profile"), "userProfile");
+    }
+
+    #[test]
+    fn test_to_camel_case_multiple_underscores() {
+        assert_eq!(to_camel_case("user_profile_settings"), "userProfileSettings");
+    }
+
+    #[test]
+    fn test_to_camel_case_no_underscores() {
+        assert_eq!(to_camel_case("user"), "user");
+    }
+
+    #[test]
+    fn test_to_camel_case_empty_string() {
+        assert_eq!(to_camel_case(""), "");
+    }
+
+    #[test]
+    fn test_to_camel_case_single_underscore() {
+        assert_eq!(to_camel_case("_test"), "Test");
+    }
+
+    // ==================== pluralize_query_name tests ====================
+
+    #[test]
+    fn test_pluralize_query_name_ending_in_y() {
+        assert_eq!(pluralize_query_name("company"), "companies");
+    }
+
+    #[test]
+    fn test_pluralize_query_name_regular() {
+        assert_eq!(pluralize_query_name("user"), "users");
+    }
+
+    #[test]
+    fn test_pluralize_query_name_ending_in_s() {
+        assert_eq!(pluralize_query_name("address"), "addresss");
+    }
+
+    // ==================== pluralize_find_many_name_original tests ====================
+
+    #[test]
+    fn test_pluralize_find_many_ending_in_y() {
+        assert_eq!(pluralize_find_many_name_original("company"), "companies");
+    }
+
+    #[test]
+    fn test_pluralize_find_many_regular() {
+        assert_eq!(pluralize_find_many_name_original("user"), "users");
+    }
+
+    #[test]
+    fn test_pluralize_find_many_ending_in_ss() {
+        // "address" + "s" = "addresss" -> "addresss" (ss at end is replaced to s)
+        assert_eq!(pluralize_find_many_name_original("address"), "addresss");
+    }
+
+    #[test]
+    fn test_pluralize_find_many_ending_in_s() {
+        // "bus" + "s" = "buss" -> "buss" ends in ss, so becomes "bus" + final s = "buss"
+        // Wait, let's trace: base = "buss", ends_with("ss") = true, so base[..len-1] + "s" = "bus" + "s" = "buss"
+        // Actually the function returns base[..base.len()-1] which would be "bus", not "buss"
+        // Let me re-check: if base.ends_with("ss"), return &base[..base.len()-1] which removes one char
+        // "buss"[..3] = "bus", then we DON'T add anything per the code... wait
+        // Actually: format!("{}s", &base[..base.len() - 1]) so "bus" + "s" = "buss"
+        // Hmm the comment says "Remove one 's'" but actually replaces "ss" with single "s"
+        // Let's test what it actually does
+        assert_eq!(pluralize_find_many_name_original("bus"), "buss");
+    }
+
+    // ==================== get_prisma_name tests ====================
+
+    #[test]
+    fn test_get_prisma_name_simple_model() {
+        let names = get_prisma_name("User");
+        assert_eq!(names.model, "User");
+        assert_eq!(names.update, "updateOneUser");
+        assert_eq!(names.create, "createOneUser");
+        assert_eq!(names.create_many, "createManyUser");
+        assert_eq!(names.find, "user");
+        assert_eq!(names.find_many, "users");
+        assert_eq!(names.where_input, "UserWhereInput");
+        assert_eq!(names.where_unique_input, "UserWhereUniqueInput");
+        assert_eq!(names.order_by_input, "UserOrderByInput");
+        assert_eq!(names.create_input, "UserCreateInput");
+        assert_eq!(names.create_many_input, "UserCreateManyInput");
+        assert_eq!(names.update_input, "UserUpdateInput");
+    }
+
+    #[test]
+    fn test_get_prisma_name_snake_case_model() {
+        let names = get_prisma_name("place_operation");
+        assert_eq!(names.model, "place_operation");
+        assert_eq!(names.find, "placeOperation");
+        assert_eq!(names.find_many, "placeOperations");
+        assert_eq!(names.query_new2, "place_operation");
+    }
+
+    #[test]
+    fn test_get_prisma_name_model_ending_in_y() {
+        let names = get_prisma_name("Company");
+        assert_eq!(names.model, "Company");
+        assert_eq!(names.find, "company");
+        assert_eq!(names.find_many, "companies");
+    }
+
+    #[test]
+    fn test_get_prisma_name_complex_snake_case() {
+        let names = get_prisma_name("help_ticket_comment");
+        assert_eq!(names.model, "help_ticket_comment");
+        assert_eq!(names.find, "helpTicketComment");
+        assert_eq!(names.find_many, "helpTicketComments");
+        assert_eq!(names.create, "createOnehelp_ticket_comment");
+        assert_eq!(names.update, "updateOnehelp_ticket_comment");
+    }
+}

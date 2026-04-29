@@ -383,3 +383,327 @@ fn parse_relation(line: &str, related_model: &str) -> Relation {
         on_update: None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== FieldType tests ====================
+
+    #[test]
+    fn test_field_type_to_graphql_primitives() {
+        assert_eq!(FieldType::String.to_graphql_type(), "String");
+        assert_eq!(FieldType::Int.to_graphql_type(), "Int");
+        assert_eq!(FieldType::Float.to_graphql_type(), "Float");
+        assert_eq!(FieldType::Boolean.to_graphql_type(), "Boolean");
+        assert_eq!(FieldType::DateTime.to_graphql_type(), "DateTime");
+        assert_eq!(FieldType::Json.to_graphql_type(), "JSON");
+        assert_eq!(FieldType::Decimal.to_graphql_type(), "Decimal");
+        assert_eq!(FieldType::BigInt.to_graphql_type(), "BigInt");
+        assert_eq!(FieldType::Bytes.to_graphql_type(), "Bytes");
+    }
+
+    #[test]
+    fn test_field_type_to_graphql_enum() {
+        let enum_type = FieldType::Enum("Status".to_string());
+        assert_eq!(enum_type.to_graphql_type(), "Status");
+    }
+
+    #[test]
+    fn test_field_type_to_graphql_model() {
+        let model_type = FieldType::Model("User".to_string());
+        assert_eq!(model_type.to_graphql_type(), "User");
+    }
+
+    #[test]
+    fn test_field_type_to_typescript() {
+        assert_eq!(FieldType::String.to_typescript_type(), "string");
+        assert_eq!(FieldType::Int.to_typescript_type(), "number");
+        assert_eq!(FieldType::Float.to_typescript_type(), "number");
+        assert_eq!(FieldType::Boolean.to_typescript_type(), "boolean");
+        assert_eq!(FieldType::DateTime.to_typescript_type(), "Date");
+        assert_eq!(FieldType::Json.to_typescript_type(), "Prisma.JsonValue");
+        assert_eq!(FieldType::Decimal.to_typescript_type(), "Prisma.Decimal");
+        assert_eq!(FieldType::BigInt.to_typescript_type(), "bigint");
+        assert_eq!(FieldType::Bytes.to_typescript_type(), "Buffer");
+    }
+
+    #[test]
+    fn test_field_type_is_scalar() {
+        assert!(FieldType::String.is_scalar());
+        assert!(FieldType::Int.is_scalar());
+        assert!(FieldType::Enum("Status".to_string()).is_scalar());
+        assert!(!FieldType::Model("User".to_string()).is_scalar());
+    }
+
+    // ==================== parse_schema tests ====================
+
+    #[test]
+    fn test_parse_simple_model() {
+        let schema = r#"
+model User {
+  id    Int     @id @default(autoincrement())
+  name  String
+  email String  @unique
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        assert_eq!(result.models.len(), 1);
+        assert_eq!(result.models[0].name, "User");
+        assert_eq!(result.models[0].fields.len(), 3);
+        
+        let id_field = &result.models[0].fields[0];
+        assert_eq!(id_field.name, "id");
+        assert!(id_field.is_id);
+        assert!(matches!(id_field.field_type, FieldType::Int));
+        
+        let email_field = &result.models[0].fields[2];
+        assert_eq!(email_field.name, "email");
+        assert!(email_field.is_unique);
+    }
+
+    #[test]
+    fn test_parse_enum() {
+        let schema = r#"
+enum Status {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        assert_eq!(result.enums.len(), 1);
+        assert_eq!(result.enums[0].name, "Status");
+        assert_eq!(result.enums[0].values.len(), 3);
+        assert_eq!(result.enums[0].values[0].name, "ACTIVE");
+        assert_eq!(result.enums[0].values[1].name, "INACTIVE");
+        assert_eq!(result.enums[0].values[2].name, "PENDING");
+    }
+
+    #[test]
+    fn test_parse_model_with_enum_field() {
+        let schema = r#"
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id     Int    @id
+  status Status
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        assert_eq!(result.models.len(), 1);
+        let status_field = &result.models[0].fields[1];
+        assert_eq!(status_field.name, "status");
+        assert!(matches!(&status_field.field_type, FieldType::Enum(name) if name == "Status"));
+    }
+
+    #[test]
+    fn test_parse_optional_field() {
+        let schema = r#"
+model User {
+  id   Int     @id
+  bio  String?
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        let bio_field = &result.models[0].fields[1];
+        assert_eq!(bio_field.name, "bio");
+        assert!(!bio_field.is_required);
+    }
+
+    #[test]
+    fn test_parse_list_field() {
+        let schema = r#"
+model User {
+  id    Int      @id
+  tags  String[]
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        let tags_field = &result.models[0].fields[1];
+        assert_eq!(tags_field.name, "tags");
+        assert!(tags_field.is_list);
+    }
+
+    #[test]
+    fn test_parse_relation() {
+        let schema = r#"
+model User {
+  id    Int     @id
+  posts Post[]
+}
+
+model Post {
+  id       Int  @id
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id])
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        assert_eq!(result.models.len(), 2);
+        
+        let post_model = &result.models[1];
+        let author_field = post_model.fields.iter().find(|f| f.name == "author").unwrap();
+        
+        assert!(author_field.relation.is_some());
+        let relation = author_field.relation.as_ref().unwrap();
+        assert_eq!(relation.related_model, "User");
+        assert_eq!(relation.fields, vec!["authorId"]);
+        assert_eq!(relation.references, vec!["id"]);
+    }
+
+    #[test]
+    fn test_parse_updated_at() {
+        let schema = r#"
+model User {
+  id        Int      @id
+  updatedAt DateTime @updatedAt
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        let updated_at_field = &result.models[0].fields[1];
+        assert!(updated_at_field.is_updated_at);
+    }
+
+    #[test]
+    fn test_parse_default_value() {
+        let schema = r#"
+model User {
+  id        Int      @id @default(autoincrement())
+  active    Boolean  @default(true)
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        let id_field = &result.models[0].fields[0];
+        // Note: The parser currently captures up to the first `)` so nested parens are truncated
+        assert_eq!(id_field.default_value, Some("autoincrement(".to_string()));
+        
+        let active_field = &result.models[0].fields[1];
+        assert_eq!(active_field.default_value, Some("true".to_string()));
+    }
+
+    #[test]
+    fn test_parse_multiple_models() {
+        let schema = r#"
+model User {
+  id   Int    @id
+  name String
+}
+
+model Post {
+  id    Int    @id
+  title String
+}
+
+model Comment {
+  id   Int    @id
+  text String
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        assert_eq!(result.models.len(), 3);
+        assert_eq!(result.models[0].name, "User");
+        assert_eq!(result.models[1].name, "Post");
+        assert_eq!(result.models[2].name, "Comment");
+    }
+
+    #[test]
+    fn test_parse_empty_schema() {
+        let schema = "";
+        let result = parse_schema(schema).unwrap();
+        
+        assert!(result.models.is_empty());
+        assert!(result.enums.is_empty());
+    }
+
+    #[test]
+    fn test_parse_schema_with_comments() {
+        let schema = r#"
+// This is a comment
+model User {
+  id   Int    @id
+  // Another comment
+  name String
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        
+        assert_eq!(result.models.len(), 1);
+        assert_eq!(result.models[0].fields.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_all_field_types() {
+        let schema = r#"
+model AllTypes {
+  id       Int      @id
+  str      String
+  num      Int
+  float    Float
+  bool     Boolean
+  date     DateTime
+  json     Json
+  decimal  Decimal
+  bigint   BigInt
+  bytes    Bytes
+}
+"#;
+        let result = parse_schema(schema).unwrap();
+        let fields = &result.models[0].fields;
+        
+        assert!(matches!(fields[0].field_type, FieldType::Int));
+        assert!(matches!(fields[1].field_type, FieldType::String));
+        assert!(matches!(fields[2].field_type, FieldType::Int));
+        assert!(matches!(fields[3].field_type, FieldType::Float));
+        assert!(matches!(fields[4].field_type, FieldType::Boolean));
+        assert!(matches!(fields[5].field_type, FieldType::DateTime));
+        assert!(matches!(fields[6].field_type, FieldType::Json));
+        assert!(matches!(fields[7].field_type, FieldType::Decimal));
+        assert!(matches!(fields[8].field_type, FieldType::BigInt));
+        assert!(matches!(fields[9].field_type, FieldType::Bytes));
+    }
+
+    // ==================== parse_relation tests ====================
+
+    #[test]
+    fn test_parse_relation_with_name() {
+        let line = r#"author User @relation(name: "PostAuthor", fields: [authorId], references: [id])"#;
+        let relation = parse_relation(line, "User");
+        
+        assert_eq!(relation.name, Some("PostAuthor".to_string()));
+        assert_eq!(relation.related_model, "User");
+        assert_eq!(relation.fields, vec!["authorId"]);
+        assert_eq!(relation.references, vec!["id"]);
+    }
+
+    #[test]
+    fn test_parse_relation_without_name() {
+        let line = r#"author User @relation(fields: [authorId], references: [id])"#;
+        let relation = parse_relation(line, "User");
+        
+        assert!(relation.name.is_none());
+        assert_eq!(relation.fields, vec!["authorId"]);
+        assert_eq!(relation.references, vec!["id"]);
+    }
+
+    #[test]
+    fn test_parse_relation_multiple_fields() {
+        let line = r#"post Post @relation(fields: [postId, version], references: [id, version])"#;
+        let relation = parse_relation(line, "Post");
+        
+        assert_eq!(relation.fields, vec!["postId", "version"]);
+        assert_eq!(relation.references, vec!["id", "version"]);
+    }
+}

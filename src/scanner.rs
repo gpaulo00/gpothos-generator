@@ -124,3 +124,106 @@ pub fn scan_for_manual_resolvers(
     
     Ok(resolvers)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_manual_resolvers_new() {
+        let resolvers = ManualResolvers::new();
+        assert!(resolvers.queries.is_empty());
+        assert!(resolvers.mutations.is_empty());
+    }
+
+    #[test]
+    fn test_manual_resolvers_contains_query() {
+        let mut resolvers = ManualResolvers::new();
+        resolvers.queries.insert("users".to_string());
+        
+        assert!(resolvers.contains_query("users"));
+        assert!(!resolvers.contains_query("companies"));
+    }
+
+    #[test]
+    fn test_manual_resolvers_contains_mutation() {
+        let mut resolvers = ManualResolvers::new();
+        resolvers.mutations.insert("createUser".to_string());
+        
+        assert!(resolvers.contains_mutation("createUser"));
+        assert!(!resolvers.contains_mutation("updateUser"));
+    }
+
+    #[test]
+    fn test_query_regex_double_quotes() {
+        let query_re = Regex::new(
+            r#"builder\s*\.\s*queryField\s*\(\s*["'`]([^"'`]+)["'`]"#
+        ).unwrap();
+        
+        let content = r#"builder.queryField("users", (t) => {"#;
+        let captures = query_re.captures(content).unwrap();
+        assert_eq!(&captures[1], "users");
+    }
+
+    #[test]
+    fn test_query_regex_single_quotes() {
+        let query_re = Regex::new(
+            r#"builder\s*\.\s*queryField\s*\(\s*["'`]([^"'`]+)["'`]"#
+        ).unwrap();
+        
+        let content = "builder.queryField('companies', (t) => {";
+        let captures = query_re.captures(content).unwrap();
+        assert_eq!(&captures[1], "companies");
+    }
+
+    #[test]
+    fn test_query_regex_with_whitespace() {
+        let query_re = Regex::new(
+            r#"builder\s*\.\s*queryField\s*\(\s*["'`]([^"'`]+)["'`]"#
+        ).unwrap();
+        
+        let content = r#"builder . queryField ( "users" , (t) => {"#;
+        let captures = query_re.captures(content).unwrap();
+        assert_eq!(&captures[1], "users");
+    }
+
+    #[test]
+    fn test_mutation_regex() {
+        let mutation_re = Regex::new(
+            r#"builder\s*\.\s*mutationField\s*\(\s*["'`]([^"'`]+)["'`]"#
+        ).unwrap();
+        
+        let content = r#"builder.mutationField("createUser", (t) => {"#;
+        let captures = mutation_re.captures(content).unwrap();
+        assert_eq!(&captures[1], "createUser");
+    }
+
+    #[test]
+    fn test_mutation_regex_backticks() {
+        let mutation_re = Regex::new(
+            r#"builder\s*\.\s*mutationField\s*\(\s*["'`]([^"'`]+)["'`]"#
+        ).unwrap();
+        
+        let content = "builder.mutationField(`updateUser`, (t) => {";
+        let captures = mutation_re.captures(content).unwrap();
+        assert_eq!(&captures[1], "updateUser");
+    }
+
+    #[test]
+    fn test_scan_empty_dirs() {
+        let result = scan_for_manual_resolvers(&[], false);
+        assert!(result.is_ok());
+        let resolvers = result.unwrap();
+        assert!(resolvers.queries.is_empty());
+        assert!(resolvers.mutations.is_empty());
+    }
+
+    #[test]
+    fn test_scan_nonexistent_dir() {
+        let result = scan_for_manual_resolvers(&["nonexistent_dir".to_string()], false);
+        assert!(result.is_ok());
+        let resolvers = result.unwrap();
+        assert!(resolvers.queries.is_empty());
+        assert!(resolvers.mutations.is_empty());
+    }
+}
